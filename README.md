@@ -1,4 +1,7 @@
 # Babunia
 Babunia the game
 Work in progress...
-![image](https://github.com/Czarkowski16/Babunia/assets/139174737/60d51dfb-ad29-41d3-b841-1caab1d4bcc6)
+
+
+![image](https://github.com/Czarkowski16/Babunia/assets/139174737/e3950863-40f4-4f85-9828-f48c93fe3831)
+
