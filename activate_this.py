@@ -7,6 +7,9 @@ pygame.init()
 
 # Ustawienia okna gry
 WIDTH, HEIGHT = 1220, 720
+# Ustawienia mapy (większa niż okno gry)
+MAP_WIDTH, MAP_HEIGHT = 3000, 3000
+
 # Kolory
 WHITE = (255, 255, 255)
 WIN = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -14,13 +17,12 @@ pygame.display.set_caption("Babunia")
 
 # Ładowanie obrazu tła
 trawka = pygame.image.load("trawka.png")
-trawka = pygame.transform.scale(trawka, (WIDTH, HEIGHT))  # Skalowanie trawy na rozmiar okna
+trawka = pygame.transform.scale(trawka, (100, 100))  # Skalowanie trawy
 
 # Ładowanie obrazu domu
-dom = pygame.image.load ('dom.png')
+dom = pygame.image.load('dom.png')
 dom = pygame.transform.scale(dom, (300, 300))  # Skalowanie domu
-dom_rect = dom.get_rect()
-dom_rect.topleft = (WIDTH - 350, HEIGHT - 350)  # Ustawienie pozycji domu
+dom_world_pos = (1000, 1000)  # Pozycja domu w świecie
 
 # Ładowanie sprite'ów gracza
 standing_right = pygame.image.load("PanPole.png")
@@ -34,21 +36,19 @@ step_right = pygame.transform.scale(step_right, (200, 200))
 standing_left = pygame.transform.scale(standing_left, (200, 200))
 step_left = pygame.transform.scale(step_left, (200, 200))
 
-# Ustawienie początkowej pozycji gracza
-player_rect = standing_right.get_rect()
-player_rect.center = (WIDTH // 2, HEIGHT // 2)
+# Ustawienie początkowej pozycji gracza w świecie
+player_world_pos = pygame.Vector2(MAP_WIDTH // 2, MAP_HEIGHT // 2)
 
 # Ładowanie sprite'a przeciwnika
 enemy_image = pygame.image.load("babunia.png")
 enemy_image = pygame.transform.scale(enemy_image, (200, 200))
 
 # Ustawienie początkowej pozycji przeciwnika
-enemy_rect = enemy_image.get_rect()
-enemy_rect.center = (WIDTH // 4, HEIGHT // 4)
+enemy_world_pos = pygame.Vector2(300, 300)
 
 # Tworzenie listy losowych pozycji dla dodatkowej trawy
 num_trawka = 10  # Liczba dodatkowych traw
-trawka_positions = [(random.randint(0, WIDTH - 100), random.randint(0, HEIGHT - 100)) for _ in range(num_trawka)]
+trawka_positions = [(random.randint(0, MAP_WIDTH - 100), random.randint(0, MAP_HEIGHT - 100)) for _ in range(num_trawka)]
 additional_trawka = pygame.image.load("trawa.png")
 additional_trawka = pygame.transform.scale(additional_trawka, (100, 100))
 
@@ -57,8 +57,11 @@ left = False
 right = False
 is_step = False
 facing_right = True
-player_speed = 9
+player_speed = 15  # Zwiększona prędkość gracza
 enemy_speed = 2
+
+# Kamera
+camera_pos = pygame.Vector2(player_world_pos.x - WIDTH // 2, player_world_pos.y - HEIGHT // 2)
 
 # Główna pętla gry
 running = True
@@ -70,13 +73,13 @@ while running:
     # Ruch gracza
     keys = pygame.key.get_pressed()
     if keys[pygame.K_LEFT]:
-        player_rect.x -= player_speed
+        player_world_pos.x -= player_speed
         left = True
         right = False
         is_step = not is_step  # Zmieniaj obrazek kroku
         facing_right = False
     elif keys[pygame.K_RIGHT]:
-        player_rect.x += player_speed
+        player_world_pos.x += player_speed
         left = False
         right = True
         is_step = not is_step  # Zmieniaj obrazek kroku
@@ -86,30 +89,41 @@ while running:
         right = False
 
     if keys[pygame.K_UP]:
-        player_rect.y -= player_speed
+        player_world_pos.y -= player_speed
     if keys[pygame.K_DOWN]:
-        player_rect.y += player_speed
+        player_world_pos.y += player_speed
 
     # Ruch przeciwnika - goni gracza
-    if enemy_rect.x < player_rect.x:
-        enemy_rect.x += enemy_speed
-    elif enemy_rect.x > player_rect.x:
-        enemy_rect.x -= enemy_speed
+    if enemy_world_pos.x < player_world_pos.x:
+        enemy_world_pos.x += enemy_speed
+    elif enemy_world_pos.x > player_world_pos.x:
+        enemy_world_pos.x -= enemy_speed
 
-    if enemy_rect.y < player_rect.y:
-        enemy_rect.y += enemy_speed
-    elif enemy_rect.y > player_rect.y:
-        enemy_rect.y -= enemy_speed
+    if enemy_world_pos.y < player_world_pos.y:
+        enemy_world_pos.y += enemy_speed
+    elif enemy_world_pos.y > player_world_pos.y:
+        enemy_world_pos.y -= enemy_speed
+
+    # Aktualizacja pozycji kamery
+    camera_pos.x = player_world_pos.x - WIDTH // 2
+    camera_pos.y = player_world_pos.y - HEIGHT // 2
 
     # Aktualizacja okna gry
-    WIN.blit(trawka, (0, 0))  # Rysowanie trawy jako tło
+    WIN.fill(WHITE)  # Wypełnienie tła kolorem białym
+
+    # Rysowanie trawy jako tło
+    for x in range(0, MAP_WIDTH, trawka.get_width()):
+        for y in range(0, MAP_HEIGHT, trawka.get_height()):
+            WIN.blit(trawka, (x - camera_pos.x, y - camera_pos.y))
 
     # Rysowanie losowo porozmieszczonej trawy
     for pos in trawka_positions:
-        WIN.blit(additional_trawka, pos)
+        pos_screen = (pos[0] - camera_pos.x, pos[1] - camera_pos.y)
+        WIN.blit(additional_trawka, pos_screen)
 
     # Rysowanie domu
-    WIN.blit(dom, dom_rect.topleft)
+    dom_screen_pos = (dom_world_pos[0] - camera_pos.x, dom_world_pos[1] - camera_pos.y)
+    WIN.blit(dom, dom_screen_pos)
 
     # Rysowanie gracza
     if left:
@@ -119,8 +133,12 @@ while running:
     else:
         current_image = standing_right if facing_right else standing_left
 
-    WIN.blit(current_image, player_rect)
-    WIN.blit(enemy_image, enemy_rect)
+    player_screen_pos = (player_world_pos.x - camera_pos.x, player_world_pos.y - camera_pos.y)
+    WIN.blit(current_image, player_screen_pos)
+
+    # Rysowanie przeciwnika
+    enemy_screen_pos = (enemy_world_pos.x - camera_pos.x, enemy_world_pos.y - camera_pos.y)
+    WIN.blit(enemy_image, enemy_screen_pos)
 
     pygame.display.update()
 
@@ -130,3 +148,4 @@ while running:
 # Zakończenie Pygame
 pygame.quit()
 sys.exit()
+
