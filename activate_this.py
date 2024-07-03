@@ -7,10 +7,8 @@ from datetime import datetime, timedelta
 pygame.init()
 
 FPS = 60  # Liczba klatek na sekundę
-# Ustawienia okna gry
-WIDTH, HEIGHT = 1220, 720
-# Ustawienia mapy (większa niż okno gry)
-MAP_WIDTH, MAP_HEIGHT = 3000, 3000
+WIDTH, HEIGHT = 1220, 720  # Ustawienia okna gry
+MAP_WIDTH, MAP_HEIGHT = 3000, 3000  # Ustawienia mapy (większa niż okno gry)
 
 # Kolory
 WHITE = (255, 255, 255)
@@ -19,54 +17,48 @@ WIN = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Babunia")
 
 # Ładowanie obrazów
-trawka = pygame.image.load("trawka.png")
-trawka = pygame.transform.scale(trawka, (100, 100))  # Skalowanie trawy
+trawka = pygame.transform.scale(pygame.image.load("trawka.png"), (100, 100))
+dom = pygame.transform.scale(pygame.image.load('dom.png'), (400, 400))
+dom_world_pos = (1000, 1000)
+dom_rect = dom.get_rect(topleft=dom_world_pos)
 
-dom = pygame.image.load('dom.png')
-dom = pygame.transform.scale(dom, (300, 300))  # Skalowanie domu
-dom_world_pos = (1000, 1000)  # Pozycja domu w świecie
-
-standing_right = pygame.image.load("PanPole.png")
-step_right = pygame.image.load("2.png")
-standing_left = pygame.image.load("3.png")
-step_left = pygame.image.load("5.png")
-
-# Skalowanie obrazów Pole
-standing_right = pygame.transform.scale(standing_right, (200, 200))
-step_right = pygame.transform.scale(step_right, (200, 200))
-standing_left = pygame.transform.scale(standing_left, (200, 200))
-step_left = pygame.transform.scale(step_left, (200, 200))
+standing_right = pygame.transform.scale(pygame.image.load("PanPole.png"), (200, 200))
+step_right = pygame.transform.scale(pygame.image.load("2.png"), (200, 200))
+standing_left = pygame.transform.scale(pygame.image.load("3.png"), (200, 200))
+step_left = pygame.transform.scale(pygame.image.load("5.png"), (200, 200))
 
 # Ustawienie początkowej pozycji gracza w świecie
 player_world_pos = pygame.Vector2(MAP_WIDTH // 2, MAP_HEIGHT // 2)
 
 # Ładowanie sprite'a przeciwnika
-enemy_image = pygame.image.load("babunia.png")
-enemy_image = pygame.transform.scale(enemy_image, (200, 200))
+enemy_image = pygame.transform.scale(pygame.image.load("babunia.png"), (200, 200))
 
 # Ustawienie początkowej pozycji przeciwnika
 enemy_world_pos = pygame.Vector2(300, 300)
 
 # Tworzenie listy losowych pozycji dla dodatkowej trawy
-num_trawka = 10  # Liczba dodatkowych traw
+num_trawka = 17
 trawka_positions = [(random.randint(0, MAP_WIDTH - 100), random.randint(0, MAP_HEIGHT - 100)) for _ in range(num_trawka)]
-additional_trawka = pygame.image.load("drzewo.png")
-additional_trawka = pygame.transform.scale(additional_trawka, (100, 100))
+additional_trawka = pygame.transform.scale(pygame.image.load("drzewo.png"), (100, 100))
+trawka_rects = [additional_trawka.get_rect(topleft=pos) for pos in trawka_positions]
+
+# Tworzenie listy losowych pozycji dla kamperów
+num_kamper = 1
+kamper_positions = [(random.randint(0, MAP_WIDTH - 100), random.randint(0, MAP_HEIGHT - 100)) for _ in range(num_kamper)]
+additional_kamper = pygame.transform.scale(pygame.image.load("kamper.png"), (200, 200))
+kamper_rects = [additional_kamper.get_rect(topleft=pos) for pos in kamper_positions]
 
 # Zmienne animacji
-left = False
-right = False
-is_step = False
-facing_right = True
-player_speed = 5 # Prędkość gracza
-enemy_speed = 2
+left, right, is_step, facing_right = False, False, False, True
+player_speed = 7  # Prędkość gracza
+enemy_speed = 1
 
 # Kamera
 camera_pos = pygame.Vector2(player_world_pos.x - WIDTH // 2, player_world_pos.y - HEIGHT // 2)
 
 # Ustawienia zegara
 start_time = datetime.strptime("08:00 AM", "%I:%M %p")
-end_time = datetime.strptime("12:00 PM", "%I:%M %p")  # Zmiana na 12 PM
+end_time = datetime.strptime("12:00 PM", "%I:%M %p")
 current_time = start_time
 
 # Czcionka dla zegara
@@ -85,6 +77,16 @@ clock = pygame.time.Clock()
 time_elapsed_since_last_action = 0
 time_elapsed_for_clock_update = 0
 
+# Zmienna dla przeciwnika
+enemy_active = False
+
+# Funkcja sprawdzająca kolizje gracza z przeszkodami
+def check_collisions(rect, obstacles):
+    for obstacle in obstacles:
+        if rect.colliderect(obstacle):
+            return True
+    return False
+
 while running:
     delta_time = clock.tick(FPS) / 1000.0  # Czas, który minął od ostatniej klatki, w sekundach
     time_elapsed_since_last_action += delta_time
@@ -94,43 +96,66 @@ while running:
         if event.type == pygame.QUIT:
             running = False
 
+    # Zapisanie poprzedniej pozycji gracza
+    prev_player_pos = player_world_pos.copy()
+
     # Ruch gracza
     keys = pygame.key.get_pressed()
     if keys[pygame.K_LEFT]:
         player_world_pos.x -= player_speed
-        left = True
-        right = False
+        left, right, facing_right = True, False, False
         if time_elapsed_since_last_action > 0.1:
             is_step = not is_step  # Zmieniaj obrazek kroku
             time_elapsed_since_last_action = 0
-        facing_right = False
     elif keys[pygame.K_RIGHT]:
         player_world_pos.x += player_speed
-        left = False
-        right = True
+        left, right, facing_right = False, True, True
         if time_elapsed_since_last_action > 0.1:
             is_step = not is_step  # Zmieniaj obrazek kroku
             time_elapsed_since_last_action = 0
-        facing_right = True
     else:
-        left = False
-        right = False
+        left, right = False, False
 
     if keys[pygame.K_UP]:
         player_world_pos.y -= player_speed
     if keys[pygame.K_DOWN]:
         player_world_pos.y += player_speed
 
-    # Ruch przeciwnika - goni gracza
-    if enemy_world_pos.x < player_world_pos.x:
-        enemy_world_pos.x += enemy_speed
-    elif enemy_world_pos.x > player_world_pos.x:
-        enemy_world_pos.x -= enemy_speed
+    # Aktualizacja prostokąta gracza po ruchu
+    current_image = step_left if left and is_step else step_right if right and is_step else standing_left if not facing_right else standing_right
+    player_rect = current_image.get_rect(topleft=player_world_pos)
 
-    if enemy_world_pos.y < player_world_pos.y:
-        enemy_world_pos.y += enemy_speed
-    elif enemy_world_pos.y > player_world_pos.y:
-        enemy_world_pos.y -= enemy_speed
+    # Sprawdzanie kolizji gracza z domem, drzewami i kamperami
+    if check_collisions(player_rect, [dom_rect] + trawka_rects + kamper_rects):
+        player_world_pos = prev_player_pos  # Przywrócenie poprzedniej pozycji gracza w przypadku kolizji
+
+    # Aktywacja przeciwnika po 11:00 AM
+    if current_time >= datetime.strptime("11:00 AM", "%I:%M %p"):
+        enemy_active = True
+
+    # Ruch przeciwnika - goni gracza
+    if enemy_active:
+        if enemy_world_pos.x < player_world_pos.x:
+            enemy_world_pos.x += enemy_speed
+        elif enemy_world_pos.x > player_world_pos.x:
+            enemy_world_pos.x -= enemy_speed
+        if enemy_world_pos.y < player_world_pos.y:
+            enemy_world_pos.y += enemy_speed
+        elif enemy_world_pos.y > player_world_pos.y:
+            enemy_world_pos.y -= enemy_speed
+
+        # Kolizja z przeciwnikiem
+        if player_rect.colliderect(enemy_image.get_rect(topleft=enemy_world_pos)):
+            enemy_active = False
+            enemy_world_pos = pygame.Vector2(300, 300)
+            current_time = start_time
+
+    # Sprawdzenie, czy gracz dotarł do domu
+    if player_rect.colliderect(dom_rect):
+        if enemy_active:
+            enemy_active = False
+            enemy_world_pos = pygame.Vector2(300, 300)
+            current_time = start_time
 
     # Aktualizacja pozycji kamery
     camera_pos.x = player_world_pos.x - WIDTH // 2
@@ -143,11 +168,8 @@ while running:
             current_time = start_time
         time_elapsed_for_clock_update = 0
 
-    # Debugowanie: wydrukowanie aktualnego czasu i upływu czasu
-    print(f"Current Time: {current_time.strftime('%I:%M %p')}, Elapsed for Clock Update: {time_elapsed_for_clock_update}")
-
-    # Aktualizacja okna gry
-    WIN.fill(WHITE)  # Wypełnienie tła kolorem białym
+    # Rysowanie na ekranie
+    WIN.fill(WHITE)  # Wypełnienie ekranu białym kolorem
 
     # Rysowanie trawy jako tło
     for x in range(0, MAP_WIDTH, trawka.get_width()):
@@ -156,27 +178,21 @@ while running:
 
     # Rysowanie losowo porozmieszczonej trawy
     for pos in trawka_positions:
-        pos_screen = (pos[0] - camera_pos.x, pos[1] - camera_pos.y)
-        WIN.blit(additional_trawka, pos_screen)
+        WIN.blit(additional_trawka, (pos[0] - camera_pos.x, pos[1] - camera_pos.y))
+
+    # Rysowanie kamperów
+    for pos in kamper_positions:
+        WIN.blit(additional_kamper, (pos[0] - camera_pos.x, pos[1] - camera_pos.y))
 
     # Rysowanie domu
-    dom_screen_pos = (dom_world_pos[0] - camera_pos.x, dom_world_pos[1] - camera_pos.y)
-    WIN.blit(dom, dom_screen_pos)
+    WIN.blit(dom, (dom_world_pos[0] - camera_pos.x, dom_world_pos[1] - camera_pos.y))
 
     # Rysowanie gracza
-    if left:
-        current_image = step_left if is_step else standing_left
-    elif right:
-        current_image = step_right if is_step else standing_right
-    else:
-        current_image = standing_right if facing_right else standing_left
-
-    player_screen_pos = (player_world_pos.x - camera_pos.x, player_world_pos.y - camera_pos.y)
-    WIN.blit(current_image, player_screen_pos)
+    WIN.blit(current_image, (player_world_pos.x - camera_pos.x, player_world_pos.y - camera_pos.y))
 
     # Rysowanie przeciwnika
-    enemy_screen_pos = (enemy_world_pos.x - camera_pos.x, enemy_world_pos.y - camera_pos.y)
-    WIN.blit(enemy_image, enemy_screen_pos)
+    if enemy_active:
+        WIN.blit(enemy_image, (enemy_world_pos.x - camera_pos.x, enemy_world_pos.y - camera_pos.y))
 
     # Rysowanie zegara
     time_str = current_time.strftime("%I:%M %p")
@@ -187,4 +203,3 @@ while running:
 # Zakończenie Pygame
 pygame.quit()
 sys.exit()
-
