@@ -1,5 +1,5 @@
-# Babunia
-Babunia the game
+# Babunia The Game
+
 "Babunia the game"
 is an exciting game about the problems of today's world. 
 In this game, the player must explore the map, complete tasks, and when the sun sets, he will have to quickly return home...
