@@ -26,6 +26,12 @@ standing_right = pygame.transform.scale(pygame.image.load("PanPole.png"), (200, 
 step_right = pygame.transform.scale(pygame.image.load("2.png"), (200, 200))
 standing_left = pygame.transform.scale(pygame.image.load("3.png"), (200, 200))
 step_left = pygame.transform.scale(pygame.image.load("5.png"), (200, 200))
+standing_down = pygame.transform.scale(pygame.image.load("1.png"), (200, 200))
+step_down1 = pygame.transform.scale(pygame.image.load("7.png"), (200, 200))
+step_down2 = pygame.transform.scale(pygame.image.load("8.png"), (200, 200))
+standing_up = pygame.transform.scale(pygame.image.load("9.png"), (200, 200))
+step_up1 = pygame.transform.scale(pygame.image.load("10.png"), (200, 200))
+step_up2 = pygame.transform.scale(pygame.image.load("11.png"), (200, 200))
 
 # Ustawienie początkowej pozycji gracza w świecie
 player_world_pos = pygame.Vector2(MAP_WIDTH // 2, MAP_HEIGHT // 2)
@@ -49,7 +55,7 @@ additional_kamper = pygame.transform.scale(pygame.image.load("kamper.png"), (200
 kamper_rects = [additional_kamper.get_rect(topleft=pos) for pos in kamper_positions]
 
 # Zmienne animacji
-left, right, is_step, facing_right = False, False, False, True
+left, right, down, up, is_step, facing_right, facing_down, facing_up = False, False, False, False, False, True, False, False
 player_speed = 4
 enemy_speed = 6
 
@@ -86,6 +92,8 @@ running = True
 clock = pygame.time.Clock()
 time_elapsed_since_last_action = 0
 time_elapsed_for_clock_update = 0
+down_step_index = 0  # Dodana zmienna dla animacji chodzenia w dół
+up_step_index = 0  # Dodana zmienna dla animacji chodzenia w górę
 
 # Zmienna dla przeciwnika
 enemy_active = False
@@ -113,26 +121,63 @@ while running:
     keys = pygame.key.get_pressed()
     if keys[pygame.K_LEFT]:
         player_world_pos.x -= player_speed
-        left, right, facing_right = True, False, False
+        left, right, down, up, facing_right, facing_down, facing_up = True, False, False, False, False, False, False
         if time_elapsed_since_last_action > 0.1:
             is_step = not is_step  # Zmieniaj obrazek kroku
             time_elapsed_since_last_action = 0
     elif keys[pygame.K_RIGHT]:
         player_world_pos.x += player_speed
-        left, right, facing_right = False, True, True
+        left, right, down, up, facing_right, facing_down, facing_up = False, True, False, False, True, False, False
         if time_elapsed_since_last_action > 0.1:
             is_step = not is_step  # Zmieniaj obrazek kroku
             time_elapsed_since_last_action = 0
-    else:
-        left, right = False, False
-
-    if keys[pygame.K_UP]:
-        player_world_pos.y -= player_speed
-    if keys[pygame.K_DOWN]:
+    elif keys[pygame.K_DOWN]:
         player_world_pos.y += player_speed
+        left, right, down, up, facing_right, facing_down, facing_up = False, False, True, False, False, True, False
+        if time_elapsed_since_last_action > 0.1:
+            down_step_index = (down_step_index + 1) % 4  # Cykl animacji chodzenia w dół
+            time_elapsed_since_last_action = 0
+    elif keys[pygame.K_UP]:
+        player_world_pos.y -= player_speed
+        left, right, down, up, facing_right, facing_down, facing_up = False, False, False, True, False, False, True
+        if time_elapsed_since_last_action > 0.1:
+            up_step_index = (up_step_index + 1) % 4  # Cykl animacji chodzenia w górę
+            time_elapsed_since_last_action = 0
+    else:
+        left, right, down, up = False, False, False, False
 
     # Aktualizacja prostokąta gracza po ruchu
-    current_image = step_left if left and is_step else step_right if right and is_step else standing_left if not facing_right else standing_right
+    current_image = None
+    if left and is_step:
+        current_image = step_left
+    elif left:
+        current_image = standing_left
+    elif right and is_step:
+        current_image = step_right
+    elif right:
+        current_image = standing_right
+    elif down:
+        if down_step_index == 0:
+            current_image = standing_down
+        elif down_step_index == 1:
+            current_image = step_down1
+        elif down_step_index == 2:
+            current_image = standing_down
+        elif down_step_index == 3:
+            current_image = step_down2
+    elif up:
+        if up_step_index == 0:
+            current_image = standing_up
+        elif up_step_index == 1:
+            current_image = step_up1
+        elif up_step_index == 2:
+            current_image = standing_up
+        elif up_step_index == 3:
+            current_image = step_up2
+
+    if current_image is None:
+        current_image = standing_right  # Domyślny obrazek, jeśli żaden warunek nie zostanie spełniony
+
     player_rect = current_image.get_rect(topleft=player_world_pos)
 
     # Sprawdzanie kolizji gracza z domem, drzewami i kamperami
@@ -222,3 +267,4 @@ while running:
 # Zakończenie Pygame
 pygame.quit()
 sys.exit()
+
