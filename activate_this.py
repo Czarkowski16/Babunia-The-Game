@@ -8,17 +8,17 @@ pygame.init()
 
 FPS = 60  # Liczba klatek na sekundę
 WIDTH, HEIGHT = 1220, 720  # Ustawienia okna gry
-MAP_WIDTH, MAP_HEIGHT = 3000, 3000  # Ustawienia mapy (większa niż okno gry)
+MAP_WIDTH, MAP_HEIGHT = 6000, 6000  # Ustawienia mapy (większa niż okno gry)
 
 # Kolory
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 WIN = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Babunia")
+pygame.display.set_caption("Babunia")  # Poprawiono literówkę
 
 # Ładowanie obrazów
 trawka = pygame.transform.scale(pygame.image.load("trawka.png"), (100, 100))
-dom = pygame.transform.scale(pygame.image.load('dom.png'), (400, 400))
+dom = pygame.transform.scale(pygame.image.load('dom.png'), (200, 200))
 dom_world_pos = (1000, 1000)
 dom_rect = dom.get_rect(topleft=dom_world_pos)
 
@@ -50,8 +50,8 @@ kamper_rects = [additional_kamper.get_rect(topleft=pos) for pos in kamper_positi
 
 # Zmienne animacji
 left, right, is_step, facing_right = False, False, False, True
-player_speed = 7  # Prędkość gracza
-enemy_speed = 1
+player_speed = 4
+enemy_speed = 6
 
 # Kamera
 camera_pos = pygame.Vector2(player_world_pos.x - WIDTH // 2, player_world_pos.y - HEIGHT // 2)
@@ -61,8 +61,12 @@ start_time = datetime.strptime("08:00 AM", "%I:%M %p")
 end_time = datetime.strptime("12:00 PM", "%I:%M %p")
 current_time = start_time
 
-# Czcionka dla zegara
+# Czcionka dla zegara i listy zadań
 font = pygame.font.Font(None, 36)
+
+# Definiowanie zadań
+tasks = ["Idź na kebsa"]
+tasks_completed = [False]
 
 # Funkcja do rysowania tekstu na ekranie
 def draw_text(text, font, color, surface, x, y):
@@ -70,6 +74,12 @@ def draw_text(text, font, color, surface, x, y):
     textrect = textobj.get_rect()
     textrect.topleft = (x, y)
     surface.blit(textobj, textrect)
+
+# Funkcja do rysowania listy zadań na ekranie
+def draw_tasks(tasks, tasks_completed, font, color, surface, x, y):
+    for i, task in enumerate(tasks):
+        task_text = f"{'[X]' if tasks_completed[i] else '[ ]'} {task}"
+        draw_text(task_text, font, color, surface, x, y + i * 30)
 
 # Główna pętla gry
 running = True
@@ -150,12 +160,18 @@ while running:
             enemy_world_pos = pygame.Vector2(300, 300)
             current_time = start_time
 
-    # Sprawdzenie, czy gracz dotarł do domu
-    if player_rect.colliderect(dom_rect):
-        if enemy_active:
-            enemy_active = False
-            enemy_world_pos = pygame.Vector2(300, 300)
-            current_time = start_time
+    # Sprawdzenie, czy gracz dotarł do kampera
+    for i, kamper_pos in enumerate(kamper_positions):
+        kamper_rect = additional_kamper.get_rect(topleft=kamper_pos)
+        if player_rect.colliderect(kamper_rect) and not tasks_completed[i]:
+            tasks_completed[i] = True  # Zadanie ukończone
+
+    # Sprawdzenie, czy gracz dotarł do domu po ukończeniu zadania
+    if player_rect.colliderect(dom_rect) and all(tasks_completed):
+        enemy_active = False
+        enemy_world_pos = pygame.Vector2(300, 300)
+        current_time = start_time
+        tasks_completed = [False]  # Zresetowanie stanu zadań
 
     # Aktualizacja pozycji kamery
     camera_pos.x = player_world_pos.x - WIDTH // 2
@@ -197,6 +213,9 @@ while running:
     # Rysowanie zegara
     time_str = current_time.strftime("%I:%M %p")
     draw_text(f"Czas: {time_str}", font, BLACK, WIN, 10, 10)
+
+    # Rysowanie listy zadań
+    draw_tasks(tasks, tasks_completed, font, BLACK, WIN, WIDTH - 300, 10)
 
     pygame.display.update()
 
