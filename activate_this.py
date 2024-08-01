@@ -3,26 +3,28 @@ import sys
 import random
 from datetime import datetime, timedelta
 
-# Inicjalizacja Pygame
+# Initialize Pygame
 pygame.init()
 
-FPS = 60
-WIDTH, HEIGHT = 1220, 720
-MAP_TILES_X, MAP_TILES_Y = 60, 60  # Liczba kafelków trawy w poziomie i pionie
-TILE_SIZE = 100  # Rozmiar pojedynczego kafelka trawy
-MAP_WIDTH = MAP_TILES_X * TILE_SIZE
-MAP_HEIGHT = MAP_TILES_Y * TILE_SIZE
+FPS = 60  # Frames per second
+WIDTH, HEIGHT = 1220, 720  # Window dimensions
 
+# Colors
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 DARK_GREEN = (34, 139, 34)
 BROWN = (139, 69, 19)
+
 WIN = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Babunia")
 
-# Ładowanie obrazów
-trawka = pygame.transform.scale(pygame.image.load("trawka.png"), (TILE_SIZE, TILE_SIZE))
+# Load images
+menu_bg = pygame.transform.scale(pygame.image.load("menu.png"), (WIDTH, HEIGHT))
+trawka = pygame.transform.scale(pygame.image.load("trawka.png"), (100, 100))
 dom = pygame.transform.scale(pygame.image.load('dom.png'), (200, 200))
+dom_world_pos = (1000, 1000)
+dom_rect = dom.get_rect(topleft=dom_world_pos)
+
 standing_right = pygame.transform.scale(pygame.image.load("PanPole.png"), (200, 200))
 step_right = pygame.transform.scale(pygame.image.load("2.png"), (200, 200))
 standing_left = pygame.transform.scale(pygame.image.load("3.png"), (200, 200))
@@ -33,255 +35,245 @@ step_down2 = pygame.transform.scale(pygame.image.load("8.png"), (200, 200))
 standing_up = pygame.transform.scale(pygame.image.load("9.png"), (200, 200))
 step_up1 = pygame.transform.scale(pygame.image.load("10.png"), (200, 200))
 step_up2 = pygame.transform.scale(pygame.image.load("11.png"), (200, 200))
+
+# Initial player position next to the house
+player_world_pos = pygame.Vector2(dom_world_pos[0] + 250, dom_world_pos[1])
+
+# Enemy image
 enemy_image = pygame.transform.scale(pygame.image.load("babunia.png"), (200, 200))
+enemy_world_pos = pygame.Vector2(300, 300)
+
+# Random trawka positions
+num_trawka = 17
+trawka_positions = [(random.randint(0, WIDTH - 100), random.randint(0, HEIGHT - 100)) for _ in range(num_trawka)]
 additional_trawka = pygame.transform.scale(pygame.image.load("drzewo.png"), (100, 100))
+trawka_rects = [additional_trawka.get_rect(topleft=pos) for pos in trawka_positions]
+
+# Random kamper positions
+num_kamper = 1
+kamper_positions = [(random.randint(0, WIDTH - 100), random.randint(0, HEIGHT - 100)) for _ in range(num_kamper)]
 additional_kamper = pygame.transform.scale(pygame.image.load("kamper.png"), (200, 200))
-menu_image = pygame.transform.scale(pygame.image.load("menu.png"), (WIDTH, HEIGHT))
+kamper_rects = [additional_kamper.get_rect(topleft=pos) for pos in kamper_positions]
 
+# Animation variables
+left, right, up, down, is_step, facing_right, facing_up, facing_down = False, False, False, False, False, True, False, False
+player_speed = 4
+enemy_speed = 6
+
+# Camera position
+camera_pos = pygame.Vector2(player_world_pos.x - WIDTH // 2, player_world_pos.y - HEIGHT // 2)
+
+# Clock settings
+start_time = datetime.strptime("08:00 AM", "%I:%M %p")
+end_time = datetime.strptime("12:00 PM", "%I:%M %p")
+current_time = start_time
+
+# Font for the clock and task list
 font = pygame.font.Font(None, 36)
-big_font = pygame.font.Font(None, 72)
 
+# Tasks
+tasks = ["Idź na kebsa"]
+tasks_completed = [False]
+
+
+# Function to draw text on screen
 def draw_text(text, font, color, surface, x, y):
     textobj = font.render(text, True, color)
     textrect = textobj.get_rect()
     textrect.topleft = (x, y)
     surface.blit(textobj, textrect)
 
+
+# Function to draw tasks on screen
 def draw_tasks(tasks, tasks_completed, font, color, surface, x, y):
     for i, task in enumerate(tasks):
         task_text = f"{'[X]' if tasks_completed[i] else '[ ]'} {task}"
         draw_text(task_text, font, color, surface, x, y + i * 30)
 
+
+# Game over screen
+def draw_game_over():
+    WIN.fill(WHITE)
+    draw_text("GAME OVER", font, BLACK, WIN, WIDTH // 2 - 100, HEIGHT // 2 - 50)
+    pygame.draw.rect(WIN, BROWN, (WIDTH // 2 - 100, HEIGHT // 2, 200, 50))
+    draw_text("Restart", font, WHITE, WIN, WIDTH // 2 - 50, HEIGHT // 2 + 10)
+    pygame.draw.rect(WIN, BROWN, (WIDTH // 2 - 100, HEIGHT // 2 + 60, 200, 50))
+    draw_text("Exit", font, WHITE, WIN, WIDTH // 2 - 30, HEIGHT // 2 + 70)
+    pygame.display.update()
+
+
+# Main menu screen
+def draw_main_menu():
+    WIN.blit(menu_bg, (0, 0))
+    pygame.draw.rect(WIN, BROWN, (WIDTH // 2 - 100, HEIGHT // 2, 200, 50))
+    draw_text("Start Game", font, WHITE, WIN, WIDTH // 2 - 70, HEIGHT // 2 + 10)
+    pygame.draw.rect(WIN, BROWN, (WIDTH // 2 - 100, HEIGHT // 2 + 60, 200, 50))
+    draw_text("Exit", font, WHITE, WIN, WIDTH // 2 - 30, HEIGHT // 2 + 70)
+
+    # Display the rotating message at the bottom
+    draw_text(rotating_message, font, (255, 255, 0), WIN, WIDTH // 2 - 100,
+              HEIGHT - 50)  # Adjusted position for the message
+
+    pygame.display.update()
+
+
+# Collision checking function
 def check_collisions(rect, obstacles):
     for obstacle in obstacles:
         if rect.colliderect(obstacle):
             return True
     return False
 
-def draw_button(text, font, color, surface, x, y, width, height):
-    pygame.draw.rect(surface, color, (x, y, width, height))
-    draw_text(text, font, WHITE, surface, x + 10, y + 10)
-    return pygame.Rect(x, y, width, height)
 
-def main():
-    def game():
-        dom_world_pos = (1000, 1000)
-        player_world_pos = pygame.Vector2(dom_world_pos[0] + 210, dom_world_pos[1])
-        enemy_world_pos = pygame.Vector2(300, 300)
-        dom_rect = dom.get_rect(topleft=dom_world_pos)
+# Main game loop
+running = True
+in_game = False
+game_over = False
+clock = pygame.time.Clock()
+time_elapsed_since_last_action = 0
+time_elapsed_for_clock_update = 0
+enemy_active = False
 
-        num_trawka = 17
-        trawka_positions = [(random.randint(0, MAP_WIDTH - 100), random.randint(0, MAP_HEIGHT - 100)) for _ in range(num_trawka)]
-        trawka_rects = [additional_trawka.get_rect(topleft=pos) for pos in trawka_positions]
+# Rotating messages
+rotating_messages = [
+    "Also Try RocketMan Adventures!",
+    "Now with more kebabs!",
+    "Watch out for Babunia!",
+    "Stay inside the trawka!",
+    "Bober is my life"
+    "Bober is the best with skin"
+    "don't be colorful"
+    "how are your balls?"
+]
 
-        num_kamper = 1
-        kamper_positions = [(random.randint(0, MAP_WIDTH - 100), random.randint(0, MAP_HEIGHT - 100)) for _ in range(num_kamper)]
-        kamper_rects = [additional_kamper.get_rect(topleft=pos) for pos in kamper_positions]
+# Select a random rotating message at the start of the game
+rotating_message = random.choice(rotating_messages)
 
-        left, right, down, up, is_step, facing_right, facing_down, facing_up = False, False, False, False, False, True, False, False
-        player_speed = 4
-        enemy_speed = 6
+while running:
+    if not in_game and not game_over:
+        draw_main_menu()
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                mouse_x, mouse_y = pygame.mouse.get_pos()
+                if WIDTH // 2 - 100 <= mouse_x <= WIDTH // 2 + 100:
+                    if HEIGHT // 2 <= mouse_y <= HEIGHT // 2 + 50:
+                        in_game = True
+                    elif HEIGHT // 2 + 60 <= mouse_y <= HEIGHT // 2 + 110:
+                        running = False
+    elif game_over:
+        draw_game_over()
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                mouse_x, mouse_y = pygame.mouse.get_pos()
+                if WIDTH // 2 - 100 <= mouse_x <= WIDTH // 2 + 100:
+                    if HEIGHT // 2 <= mouse_y <= HEIGHT // 2 + 50:
+                        in_game = True
+                        game_over = False
+                        player_world_pos = pygame.Vector2(dom_world_pos[0] + 250, dom_world_pos[1])
+                        current_time = start_time
+                        tasks_completed = [False]
+                    elif HEIGHT // 2 + 60 <= mouse_y <= HEIGHT // 2 + 110:
+                        running = False
+    else:
+        delta_time = clock.tick(FPS) / 1000.0  # Time elapsed since the last frame in seconds
+        time_elapsed_since_last_action += delta_time
+        time_elapsed_for_clock_update += delta_time
 
-        camera_pos = pygame.Vector2(player_world_pos.x - WIDTH // 2, player_world_pos.y - HEIGHT // 2)
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
 
-        start_time = datetime.strptime("08:00 AM", "%I:%M %p")
-        end_time = datetime.strptime("12:00 PM", "%I:%M %p")
-        current_time = start_time
+        # Save the previous player position
+        prev_player_pos = player_world_pos.copy()
 
-        tasks = ["Idź na kebsa"]
-        tasks_completed = [False]
+        # Player movement
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_LEFT]:
+            player_world_pos.x -= player_speed
+            left, right, up, down, facing_right, facing_up, facing_down = True, False, False, False, False, False, False
+        elif keys[pygame.K_RIGHT]:
+            player_world_pos.x += player_speed
+            left, right, up, down, facing_right, facing_up, facing_down = False, True, False, False, True, False, False
+        elif keys[pygame.K_UP]:
+            player_world_pos.y -= player_speed
+            left, right, up, down, facing_right, facing_up, facing_down = False, False, True, False, False, True, False
+        elif keys[pygame.K_DOWN]:
+            player_world_pos.y += player_speed
+            left, right, up, down, facing_right, facing_up, facing_down = False, False, False, True, False, False, True
+        else:
+            left, right, up, down = False, False, False, False
 
-        running = True
-        clock = pygame.time.Clock()
-        time_elapsed_since_last_action = 0
-        time_elapsed_for_clock_update = 0
-        down_step_index = 0
-        up_step_index = 0
+        if left or right or up or down:
+            is_step = not is_step
+        else:
+            is_step = False
 
-        enemy_active = False
-        game_over = False
+        # Set current image based on movement direction and step
+        if left:
+            current_image = step_left if is_step else standing_left
+        elif right:
+            current_image = step_right if is_step else standing_right
+        elif up:
+            current_image = step_up1 if is_step else standing_up
+        elif down:
+            current_image = step_down1 if is_step else standing_down
+        else:
+            current_image = standing_right if facing_right else standing_left if left else standing_up if facing_up else standing_down
 
-        while running:
-            delta_time = clock.tick(FPS) / 1000.0
-            time_elapsed_since_last_action += delta_time
-            time_elapsed_for_clock_update += delta_time
+        player_rect = current_image.get_rect(topleft=player_world_pos - camera_pos)
 
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    pygame.quit()
-                    sys.exit()
+        # Check for collisions with trawka
+        if not check_collisions(player_rect, trawka_rects):
+            player_world_pos = prev_player_pos
 
-                if event.type == pygame.MOUSEBUTTONDOWN and game_over:
-                    mouse_pos = event.pos
-                    if restart_button.collidepoint(mouse_pos):
-                        game()
-                    if quit_button.collidepoint(mouse_pos):
-                        pygame.quit()
-                        sys.exit()
+        # Check for enemy collision
+        if player_rect.colliderect(enemy_image.get_rect(topleft=enemy_world_pos - camera_pos)):
+            game_over = True
+            in_game = False
 
-            if game_over:
-                WIN.fill(WHITE)
-                draw_text("Game Over", big_font, BLACK, WIN, WIDTH // 2 - 150, HEIGHT // 2 - 100)
-                restart_button = draw_button("Restart", font, BROWN, WIN, WIDTH // 2 - 100, HEIGHT // 2, 200, 50)
-                quit_button = draw_button("Quit", font, BROWN, WIN, WIDTH // 2 - 100, HEIGHT // 2 + 60, 200, 50)
-                pygame.display.update()
-                continue
+        # Camera position update
+        camera_pos.update(player_world_pos.x - WIDTH // 2, player_world_pos.y - HEIGHT // 2)
 
-            prev_player_pos = player_world_pos.copy()
-            keys = pygame.key.get_pressed()
-            if keys[pygame.K_LEFT]:
-                player_world_pos.x -= player_speed
-                left, right, down, up, facing_right, facing_down, facing_up = True, False, False, False, False, False, False
-                if time_elapsed_since_last_action > 0.1:
-                    is_step = not is_step
-                    time_elapsed_since_last_action = 0
-            elif keys[pygame.K_RIGHT]:
-                player_world_pos.x += player_speed
-                left, right, down, up, facing_right, facing_down, facing_up = False, True, False, False, True, False, False
-                if time_elapsed_since_last_action > 0.1:
-                    is_step = not is_step
-                    time_elapsed_since_last_action = 0
-            elif keys[pygame.K_DOWN]:
-                player_world_pos.y += player_speed
-                left, right, down, up, facing_right, facing_down, facing_up = False, False, True, False, False, True, False
-                if time_elapsed_since_last_action > 0.1:
-                    down_step_index = (down_step_index + 1) % 4
-                    time_elapsed_since_last_action = 0
-            elif keys[pygame.K_UP]:
-                player_world_pos.y -= player_speed
-                left, right, down, up, facing_right, facing_down, facing_up = False, False, False, True, False, False, True
-                if time_elapsed_since_last_action > 0.1:
-                    up_step_index = (up_step_index + 1) % 4
-                    time_elapsed_since_last_action = 0
-            else:
-                left, right, down, up = False, False, False, False
+        # Enemy movement
+        if enemy_active:
+            direction = player_world_pos - enemy_world_pos
+            distance = direction.length()
+            if distance > 0:
+                direction.normalize_ip()
+                enemy_world_pos += direction * enemy_speed
 
-            current_image = None
-            if left and is_step:
-                current_image = step_left
-            elif left:
-                current_image = standing_left
-            elif right and is_step:
-                current_image = step_right
-            elif right:
-                current_image = standing_right
-            elif down:
-                if down_step_index == 1 or down_step_index == 3:
-                    current_image = step_down1
-                elif down_step_index == 2:
-                    current_image = step_down2
-                else:
-                    current_image = standing_down
-            elif up:
-                if up_step_index == 1 or up_step_index == 3:
-                    current_image = step_up1
-                elif up_step_index == 2:
-                    current_image = step_up2
-                else:
-                    current_image = standing_up
-            else:
-                if facing_right:
-                    current_image = standing_right
-                elif facing_down:
-                    current_image = standing_down
-                elif facing_up:
-                    current_image = standing_up
-                else:
-                    current_image = standing_left
+        # Draw everything
+        WIN.fill(DARK_GREEN)
 
-            player_rect = current_image.get_rect(topleft=player_world_pos)
+        # Draw map elements (house, trawka)
+        for pos in trawka_positions:
+            WIN.blit(trawka, pos - camera_pos)
+        for pos in kamper_positions:
+            WIN.blit(additional_kamper, pos - camera_pos)
 
-            if check_collisions(player_rect, [dom_rect] + trawka_rects + kamper_rects) or \
-                    player_world_pos.x < 0 or player_world_pos.x + player_rect.width > MAP_WIDTH or \
-                    player_world_pos.y < 0 or player_world_pos.y + player_rect.height > MAP_HEIGHT:
-                player_world_pos = prev_player_pos
+        WIN.blit(dom, dom_world_pos - camera_pos)
 
-            if current_time >= datetime.strptime("11:00 AM", "%I:%M %p"):
-                enemy_active = True
+        # Draw player and enemy
+        WIN.blit(current_image, player_world_pos - camera_pos)
+        WIN.blit(enemy_image, enemy_world_pos - camera_pos)
 
-            if enemy_active:
-                if enemy_world_pos.x < player_world_pos.x:
-                    enemy_world_pos.x += enemy_speed
-                elif enemy_world_pos.x > player_world_pos.x:
-                    enemy_world_pos.x -= enemy_speed
-                if enemy_world_pos.y < player_world_pos.y:
-                    enemy_world_pos.y += enemy_speed
-                elif enemy_world_pos.y > player_world_pos.y:
-                    enemy_world_pos.y -= enemy_speed
+        # Update the clock
+        if time_elapsed_for_clock_update >= 1:
+            current_time += timedelta(minutes=1)
+            time_elapsed_for_clock_update = 0
+            if current_time >= end_time:
+                current_time = end_time
 
-                if player_rect.colliderect(enemy_image.get_rect(topleft=enemy_world_pos)):
-                    game_over = True
-                    continue
+        # Draw the clock and tasks
+        draw_text(current_time.strftime("%I:%M %p"), font, WHITE, WIN, 10, 10)
+        draw_tasks(tasks, tasks_completed, font, WHITE, WIN, 10, 50)
 
-            for i, kamper_pos in enumerate(kamper_positions):
-                kamper_rect = additional_kamper.get_rect(topleft=kamper_pos)
-                if player_rect.colliderect(kamper_rect) and not tasks_completed[i]:
-                    tasks_completed[i] = True
+        pygame.display.update()
 
-            if player_rect.colliderect(dom_rect) and all(tasks_completed):
-                enemy_active = False
-                enemy_world_pos = pygame.Vector2(300, 300)
-                current_time = start_time
-                tasks_completed = [False]
-
-            camera_pos.x = player_world_pos.x - WIDTH // 2
-            camera_pos.y = player_world_pos.y - HEIGHT // 2
-
-            if time_elapsed_for_clock_update >= 1:
-                current_time += timedelta(minutes=1)
-                if current_time >= end_time:
-                    current_time = start_time
-                time_elapsed_for_clock_update = 0
-
-            WIN.fill(DARK_GREEN)
-
-            for x in range(0, MAP_WIDTH, trawka.get_width()):
-                for y in range(0, MAP_HEIGHT, trawka.get_height()):
-                    WIN.blit(trawka, (x - camera_pos.x, y - camera_pos.y))
-
-            for pos in trawka_positions:
-                WIN.blit(additional_trawka, (pos[0] - camera_pos.x, pos[1] - camera_pos.y))
-
-            for pos in kamper_positions:
-                WIN.blit(additional_kamper, (pos[0] - camera_pos.x, pos[1] - camera_pos.y))
-
-            WIN.blit(dom, (dom_world_pos[0] - camera_pos.x, dom_world_pos[1] - camera_pos.y))
-
-            WIN.blit(current_image, (player_world_pos.x - camera_pos.x, player_world_pos.y - camera_pos.y))
-
-            if enemy_active:
-                WIN.blit(enemy_image, (enemy_world_pos.x - camera_pos.x, enemy_world_pos.y - camera_pos.y))
-
-            time_str = current_time.strftime("%I:%M %p")
-            draw_text(f"Czas: {time_str}", font, BLACK, WIN, 10, 10)
-
-            draw_tasks(tasks, tasks_completed, font, BLACK, WIN, WIDTH - 300, 10)
-
-            pygame.display.update()
-
-    def menu():
-        menu_running = True
-        while menu_running:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    pygame.quit()
-                    sys.exit()
-                if event.type == pygame.MOUSEBUTTONDOWN:
-                    mouse_pos = event.pos
-                    if start_button.collidepoint(mouse_pos):
-                        menu_running = False
-                    if quit_button.collidepoint(mouse_pos):
-                        pygame.quit()
-                        sys.exit()
-
-            WIN.blit(menu_image, (0, 0))
-            start_button = draw_button("Start", font, BROWN, WIN, WIDTH // 2 - 100, HEIGHT // 2, 200, 50)
-            quit_button = draw_button("Quit", font, BROWN, WIN, WIDTH // 2 - 100, HEIGHT // 2 + 60, 200, 50)
-
-            pygame.display.update()
-
-    menu()
-    game()
-
-if __name__ == "__main__":
-    main()
+# Quit Pygame
+pygame.quit()
+sys.exit()
