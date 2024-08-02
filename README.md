@@ -10,7 +10,8 @@ Well... Babunia is coming....
 Work in progress...
 
 
-<img src="https://github.com/user-attachments/assets/a3a1c275-ce56-4a9b-80af-d898d893f874" alt="image" width="500"/>
+![image](https://github.com/user-attachments/assets/85e224ce-67af-45cc-b9e4-8d634e01fa2f)
+
 
 ![image](https://github.com/user-attachments/assets/07c693b4-541c-4b49-9176-d5267d15b421)
 
