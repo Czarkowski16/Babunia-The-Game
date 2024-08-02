@@ -17,6 +17,7 @@ WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 DARK_GREEN = (34, 139, 34)
 BROWN = (139, 69, 19)
+YELLOW = (255, 255, 0)
 WIN = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Babunia")
 
@@ -40,6 +41,8 @@ menu_image = pygame.transform.scale(pygame.image.load("menu.png"), (WIDTH, HEIGH
 
 font = pygame.font.Font(None, 36)
 big_font = pygame.font.Font(None, 72)
+menu_font = pygame.font.Font(None, 48)  # Font do napisów w menu
+
 
 def draw_text(text, font, color, surface, x, y):
     textobj = font.render(text, True, color)
@@ -47,10 +50,12 @@ def draw_text(text, font, color, surface, x, y):
     textrect.topleft = (x, y)
     surface.blit(textobj, textrect)
 
+
 def draw_tasks(tasks, tasks_completed, font, color, surface, x, y):
     for i, task in enumerate(tasks):
         task_text = f"{'[X]' if tasks_completed[i] else '[ ]'} {task}"
         draw_text(task_text, font, color, surface, x, y + i * 30)
+
 
 def check_collisions(rect, obstacles):
     for obstacle in obstacles:
@@ -58,10 +63,12 @@ def check_collisions(rect, obstacles):
             return True
     return False
 
+
 def draw_button(text, font, color, surface, x, y, width, height):
     pygame.draw.rect(surface, color, (x, y, width, height))
     draw_text(text, font, WHITE, surface, x + 10, y + 10)
     return pygame.Rect(x, y, width, height)
+
 
 def main():
     def game():
@@ -132,25 +139,25 @@ def main():
             if keys[pygame.K_LEFT]:
                 player_world_pos.x -= player_speed
                 left, right, down, up, facing_right, facing_down, facing_up = True, False, False, False, False, False, False
-                if time_elapsed_since_last_action > 0.1:
+                if time_elapsed_since_last_action > 0.2:  # Spowolnienie animacji kroków
                     is_step = not is_step
                     time_elapsed_since_last_action = 0
             elif keys[pygame.K_RIGHT]:
                 player_world_pos.x += player_speed
                 left, right, down, up, facing_right, facing_down, facing_up = False, True, False, False, True, False, False
-                if time_elapsed_since_last_action > 0.1:
+                if time_elapsed_since_last_action > 0.2:  # Spowolnienie animacji kroków
                     is_step = not is_step
                     time_elapsed_since_last_action = 0
             elif keys[pygame.K_DOWN]:
                 player_world_pos.y += player_speed
                 left, right, down, up, facing_right, facing_down, facing_up = False, False, True, False, False, True, False
-                if time_elapsed_since_last_action > 0.1:
+                if time_elapsed_since_last_action > 0.2:  # Spowolnienie animacji kroków
                     down_step_index = (down_step_index + 1) % 4
                     time_elapsed_since_last_action = 0
             elif keys[pygame.K_UP]:
                 player_world_pos.y -= player_speed
                 left, right, down, up, facing_right, facing_down, facing_up = False, False, False, True, False, False, True
-                if time_elapsed_since_last_action > 0.1:
+                if time_elapsed_since_last_action > 0.2:  # Spowolnienie animacji kroków
                     up_step_index = (up_step_index + 1) % 4
                     time_elapsed_since_last_action = 0
             else:
@@ -260,7 +267,17 @@ def main():
             pygame.display.update()
 
     def menu():
+        messages = [
+            "Babunia is coming", "Also Try RocketMan Adventures!", "Mocny Gaz!", "just don't go into any river!",
+            "Now with more kebab!", "Bober are best with the skin!", "Minecraft won't add inches to your cock!"
+        ]
+        current_message = random.choice(messages)
+
         menu_running = True
+        animation_scale = 1.0
+        animation_speed = 0.001
+        growing = True
+
         while menu_running:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -278,10 +295,23 @@ def main():
             start_button = draw_button("Start", font, BROWN, WIN, WIDTH // 2 - 100, HEIGHT // 2, 200, 50)
             quit_button = draw_button("Quit", font, BROWN, WIN, WIDTH // 2 - 100, HEIGHT // 2 + 60, 200, 50)
 
+            if growing:
+                animation_scale += animation_speed
+                if animation_scale >= 1.1:
+                    growing = False
+            else:
+                animation_scale -= animation_speed
+                if animation_scale <= 0.9:
+                    growing = True
+
+            animated_font = pygame.font.Font(None, int(48 * animation_scale))
+            draw_text(current_message, animated_font, YELLOW, WIN, WIDTH // 2 - animated_font.size(current_message)[0] // 2, HEIGHT - 100)
+
             pygame.display.update()
 
     menu()
     game()
+
 
 if __name__ == "__main__":
     main()
