@@ -139,26 +139,26 @@ def main():
             if keys[pygame.K_LEFT]:
                 player_world_pos.x -= player_speed
                 left, right, down, up, facing_right, facing_down, facing_up = True, False, False, False, False, False, False
-                if time_elapsed_since_last_action > 0.2:  # Spowolnienie animacji kroków
+                if time_elapsed_since_last_action > 0.1:  # Spowolnienie animacji kroków
                     is_step = not is_step
                     time_elapsed_since_last_action = 0
             elif keys[pygame.K_RIGHT]:
                 player_world_pos.x += player_speed
                 left, right, down, up, facing_right, facing_down, facing_up = False, True, False, False, True, False, False
-                if time_elapsed_since_last_action > 0.2:  # Spowolnienie animacji kroków
+                if time_elapsed_since_last_action > 0.1:  # Spowolnienie animacji kroków
                     is_step = not is_step
                     time_elapsed_since_last_action = 0
             elif keys[pygame.K_DOWN]:
                 player_world_pos.y += player_speed
                 left, right, down, up, facing_right, facing_down, facing_up = False, False, True, False, False, True, False
-                if time_elapsed_since_last_action > 0.2:  # Spowolnienie animacji kroków
+                if time_elapsed_since_last_action > 0.1:  # Spowolnienie animacji kroków
                     down_step_index = (down_step_index + 1) % 4
                     time_elapsed_since_last_action = 0
             elif keys[pygame.K_UP]:
                 player_world_pos.y -= player_speed
                 left, right, down, up, facing_right, facing_down, facing_up = False, False, False, True, False, False, True
-                if time_elapsed_since_last_action > 0.2:  # Spowolnienie animacji kroków
-                    up_step_index = (up_step_index + 1) % 4
+                if time_elapsed_since_last_action > 0.1:  # Spowolnienie animacji kroków
+                    up_step_index = (up_step_index + 1) % 3
                     time_elapsed_since_last_action = 0
             else:
                 left, right, down, up = False, False, False, False
@@ -269,7 +269,7 @@ def main():
     def menu():
         messages = [
             "Babunia is coming", "Also Try RocketMan Adventures!", "Mocny Gaz!", "just don't go into any river!",
-            "Now with more kebab!", "Bober are best with the skin!", "Minecraft won't add inches to your cock!"
+            "Now with more kebab!", "Bober are best with the skin!", "Minecraft won't add inches to your cock!" , "workin on microwave "
         ]
         current_message = random.choice(messages)
 
@@ -311,6 +311,10 @@ def main():
 
     menu()
     game()
+
+
+if __name__ == "__main__":
+    main()
 
 
 if __name__ == "__main__":
